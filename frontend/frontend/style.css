@@ -1,0 +1,439 @@
+body {
+    user-select: none;
+    font-family: sans-serif;
+    display: flex;
+    flex-direction: row; /* Sidebar on left, Content on right */
+    height: 100vh;
+    margin: 0;
+    background-color: #2b2a33;
+    overflow: hidden; /* Keeps things tidy */
+}
+
+.sidebar {
+    transition: width 0.3s ease;
+    width: 200px;
+    height: 100vh;
+    overflow-x: hidden;
+    background-color: #1e1d24;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 10px; /* Adjusted padding */
+    box-sizing: border-box;
+}
+
+.menu-btn {
+    position: relative;
+    top: 0;
+    left: 0;
+    display: block;
+    width: fit-content;
+    align-items: center;
+    color: #888;
+    text-decoration: none;
+    padding: 10px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.sidebar.collapsed #menu-btn {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    padding: 10px 0;
+}
+
+.sidebar.collapsed {
+    width: 70px; /* Slightly wider to give icons room */
+}
+
+.sidebar.collapsed a {
+    display: flex;
+    justify-content: center; /* Center the icon/block */
+    padding: 10px 0;
+    /*text-indent: -9999px; /* This hides the text while keeping the element clickable */
+    overflow: hidden;
+}
+
+.sidebar.collapsed a.active {
+    color: #ff4d4d;
+    background-color: #2b2a33;
+    border-left: 4px solid #ff4d4d; /* Adds a nice indicator on the left */
+}
+
+.sidebar.collapsed a i {
+    text-indent: 0; 
+    font-size: 1.2rem;
+}
+
+.sidebar.collapsed a span,
+.sidebar.collapsed .sidebar-text {  
+    display: none;
+}
+
+.sidebar a {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    color: #888;
+    text-decoration: none;
+    padding: 10px 15px;
+    margin: 5px 0;
+    border-radius: 4px;
+    transition: 0.4s;
+    white-space: nowrap; /* Prevents text from wrapping during transition */
+}
+
+.sidebar a:hover {
+    background-color: #2b2a33;
+    color: #ff4d4d;
+}
+
+.sidebar a.active {
+    color: #ff4d4d;
+    background-color: #2b2a33;
+    font-weight: bold;
+}
+
+.main-content {
+    flex: 1; 
+    display: flex;
+    flex-direction: column;
+    height: 100vh; /* This is crucial for the bottom bar to work! */
+    align-items: stretch;
+    justify-content: flex-start; /* This centers the "Download Card" in the middle of the main area */
+    transition: margin-left 0.3s;
+}
+
+.container { 
+    background: #1e1d24; 
+    padding: 2.5rem; 
+    border-radius: 12px; 
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    margin: auto; /* This helps keep the card centered vertically above the footer */
+}
+
+.bottom { 
+    margin-top: auto;
+    width: 100%; 
+    background-color: #1e1d24; 
+    padding: 15px 0; 
+    text-align: center; 
+    color: #888; 
+    font-size: 0.8rem;
+    /* No need for margin-top: auto if .main-content is set up correctly, 
+    but keeping it doesn't hurt! */
+}
+
+#download-btn {
+    padding: 10px 20px; 
+    background-color: #ff4d4d; 
+    color: white; 
+    border: none; 
+    border-radius: 4px; 
+    cursor: pointer;
+}
+
+#download-btn:hover { 
+    background-color: #35343f; 
+}
+
+h2 {
+    color: white;
+}
+
+#play-btn {
+    color: white;
+}
+
+#url-input {
+    padding: 5px;
+    border-radius: 2px;
+    border-color: white;
+    cursor: text;
+}
+
+#status {
+    color: white;
+}
+
+.page {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+#page-library {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch; /* This forces children to span the full width */
+    justify-content: flex-start; /* This moves content to the top */
+    width: 100%;
+    padding: 20px;
+    box-sizing: border-box;
+    overflow-y: auto; /* This makes the song list scrollable */
+}
+
+h3 {
+    text-decoration: none;
+    padding: 10px;
+    margin: 5px 0;
+    border-radius: 4px;
+    color: white;
+}
+
+#library-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 20px;
+    width: 100%;
+}
+
+.playlist-card {
+    background: #222;
+    border-radius: 12px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.15s;
+}
+
+.playlist-card:hover { transform: scale(1.05); }
+
+.playlist-card img {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+}
+
+.thumb-container {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background-color: #333; /* Placeholder color */
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.thumb-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block; /* Removes bottom spacing */
+}
+
+.back-button {
+    background: #ff4b4b; /* Your red theme color */
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-bottom: 15px;
+}
+
+/* Layout for the Header */
+.view-header {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    width: 100%;
+    gap: 20px;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #444;
+}
+
+.back-button {
+    background: #444;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.back-button:hover {
+    background: #666;
+}
+
+/* Song List Container */
+.song-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+}
+
+/* Individual Song Row */
+.song-row {
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-sizing: border-box;
+    transition: background 0.2s;
+}
+
+.song-row:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.song-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex: 1;
+}
+
+.song-info img {
+    width: 45px;
+    height: 45px;
+    border-radius: 4px;
+    object-fit: cover;
+}
+
+.song-metadata {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.song-name {
+    font-weight: 600;
+    color: #fff;
+    font-size: 1rem;
+    margin-bottom: 2px;
+}
+
+.song-artist {
+    font-size: 0.85rem;
+    color: #aaa;
+}
+
+/* Play Button Styling */
+.play-btn {
+    background: #e50914; /* Red Theme matching your footer */
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+
+.play-btn:hover {
+    background: #ff0a16;
+    transform: scale(1.05);
+}
+
+.player-container {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: #1e1d24; /* Matches sidebar */
+    padding: 15px 20px; /* Red accent line */
+    box-sizing: border-box;
+}
+
+.custom-player {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    color: white;
+}
+
+.control-btn {
+    background: #ff4d4d;
+    border: none;
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.control-btn:hover { transform: scale(1.1); }
+
+.progress-area {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.8rem;
+    color: #888;
+}
+
+/* Styling the Sliders (Progress & Volume) */
+input[type="range"] {
+    flex: 1;
+    accent-color: #ff4d4d; /* Modern way to change slider color to your red */
+    cursor: pointer;
+}
+
+.volume-area {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 150px;
+}
+
+.playlist-dropdown-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+    pointer-events: auto;
+    transition: background 0.2;
+}
+
+.playlist-dropdown-btn:hover {
+    background: rgba(0, 0, 0, 0.9);
+}
+
+.playlist-dropdown {
+    display: none;
+    position: absolute;
+    top: 40px;
+    right: 8px;
+    background: #282828;
+    border: 1px solid #3e3e3e;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    z-index: 10;
+    min-width: 120px;
+}
+
+.menu-item {
+    padding: 10px 15px;
+    font-size: 14px;
+    color: #eaeaea;
+    cursor: pointer;
+}
+
+.menu-item {
+    background: #3e3e3e;
+}

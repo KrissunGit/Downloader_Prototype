@@ -1,0 +1,20 @@
+{
+  "name": "frontend",
+  "version": "1.0.0",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "start": "electron .",
+    "dev": "nodemon --watch dist --exec \"npm start\""
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "electron": "^41.3.0",
+    "nodemon": "^3.1.14",
+    "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "music-metadata": "^11.12.3"
+  }
+}
