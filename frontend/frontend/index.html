@@ -20,21 +20,50 @@
         <a href="#" id="nav-library">
             <i class="fas fa-compact-disc"></i> <span>Library</span>
         </a>
+        <a href="#" id="nav-video">
+            <i class="fas fa-video"></i> <span>Video</span>
+        </a>
         <a href="#" id="nav-settings">
             <i class="fas fa-user-cog"></i> <span>Settings</span>
         </a>
     </div>
+    
 
     <div class="main-content">
         <div id="page-main" class="page">
             <h2>Main</h2>
         </div>
 
+        <div id="video-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.9); z-index: 10000; justify-content: center; align-items: center;">
+            <button id="close-video-btn" style="position: absolute; top: 20px; right: 20px; background: #e50914; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px;">✕ Close</button>
+            <video id="global-video-player" controls style="max-width: 90%; max-height: 85%; border-radius: 6px; box-shadow: 0px 4px 20px rgba(0,0,0,0.5);"></video>
+        </div>
+
+        <div id="page-video" class="page" style="display: none;">
+            <div id="library-grid-video" class="library-grid-video">
+                <p style="color: #888;">Your downloaded videos will appear here.</p>
+            </div>
+        </div>
+
         <div id="page-downloader" class="page" style="display: none;">
-            <h2>Enter YouTube/SoundCloud Link</h2>
-            <input type="text" id="url-input" placeholder="Paste link...">
-            <button id="download-btn">Download</button>
-            <div id="status">Ready</div>
+            <div class="download-box" id="download-box">
+                <input type="text" id="url-input" placeholder="Paste link...">
+                <select id="format-select" class="format-dropdown">
+                    <option value="mp3">MP3 (audio)</option>
+                    <option value="webm">WEBM (video)</option>
+                </select>
+                <select id="quality-select" class="quality-select" style="display:none;">
+                    <option value="480p">480p</option>
+                    <option value="720p">720p</option>
+                    <option value="1080p">1080p</option>
+                    <option value="best">Best Available</option>
+                </select>
+                <button id="download-btn">Download</button>
+                <div id="status">Ready</div>
+            </div>
+            <div id="queue-container" class="download-queue">
+                <!-- Queue item rows will render inside here dynamically -->
+            </div>
         </div>
 
         <div id="page-library" class="page" style="display: none;">
@@ -52,7 +81,18 @@
             <audio id="audio-player"></audio>
 
             <div class="custom-player">
-                <button id="master-play-btn" class="control-btn"><i class="fas fa-play"></i></button>
+                <div class="player-controls">
+                                        
+                    <button id="skip-previous-btn" class="control-btn" title="Previous Song"><i class="fas fa-step-backward"></i></button>
+
+                    <button id="skip-backwards-btn" class="control-btn" title="Backward 10s"><i class="fas fa-backward"></i></button>
+
+                    <button id="master-play-btn" class="control-btn"><i class="fas fa-play"></i></button>
+                    
+                    <button id="skip-forward-btn" class="control-btn" title="Forward 10s"><i class="fas fa-forward"></i></button>
+                    
+                    <button id="skip-next-btn" class="control-btn" title="Next Song"><i class="fas fa-step-forward"></i></button>
+                </div>
                 
                 <div class="progress-area">
                     <span id="current-time">0:00</span>

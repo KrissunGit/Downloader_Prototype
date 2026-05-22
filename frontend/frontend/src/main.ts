@@ -1,28 +1,122 @@
 import { app, BrowserWindow, ipcMain, protocol } from 'electron';
 import * as path from 'path';
-import {exec} from 'child_process'
+import {exec, spawn} from 'child_process'
 import { error } from 'console';
 import {promisify} from 'util';
 const execPromise = promisify(exec) 
 let cachedLibrary: any = null;
 
-
-ipcMain.on("download-song", (event, url) => {
+ipcMain.handle('rename-playlist', async (event, playlistID, newName) => {
   const rootPath = path.join(__dirname, '..', '..');
   const goFilePath = path.join(rootPath, 'downloader.go');
-  const cmd = `go run "${goFilePath}" "${url}"`;
+  const cmd = `go run "${goFilePath}" --rename-playlist "${playlistID}" "${newName}"`;
+  try {
+    await execPromise(cmd);
+    cachedLibrary = null;
+    const windows = BrowserWindow.getAllWindows();
+    if (windows.length > 0) {
+      windows[0].webContents.send('playlist-renamed', {playlistID, newName});
+    }
+    return true;
+  } catch (err) {
+    console.error("GO EXEC ERROR:", err);
+    throw err;
+  }
+});
 
-  console.log("Executing:", cmd);
+ipcMain.handle("delete-playlist", async (event, playlistID) => {
+  const rootPath = path.join(__dirname, '..', '..');
+  const goFilePath = path.join(rootPath, 'downloader.go');
+  const cmd = `go run "${goFilePath}" --delete-playlist "${playlistID}"`;
+  try {
+    await execPromise(cmd);
+    cachedLibrary = null;
+    const windows = BrowserWindow.getAllWindows();
+    if (windows.length > 0) {
+      windows[0].webContents.send('playlist-deleted', playlistID);
+    }
+    return true;
+  } catch (err) {
+    console.error("GO EXEC ERROR:", err);
+    throw err;
+  }
+});
 
-  exec(cmd, (error, stderr, stdout) => {
-    if (error) {
-      console.error("GO EXEC ERROR:", error);  
-      console.error("GO STDERR:", stderr);    
-      event.reply('download-status', 'Error!');
-    } else {
-      cachedLibrary = null;
-      console.log("GO STDOUT:", stdout);
-      event.reply('download-status', 'Finished!');
+ipcMain.on("start-download", (event, url, format, quality) => {
+  const rootPath = path.join(__dirname, '..', '..');
+  const goFilePath = path.join(rootPath, 'downloader.go');
+
+  const allowedFormats = ['mp3', 'webm'];
+  const fmt = (format || '').toLowerCase();
+  if (!allowedFormats.includes(fmt)) {
+    const windows = BrowserWindow.getAllWindows();
+    if (windows.length > 0) windows[0].webContents.send('download-status', `Error: unsupported format '${format}'. Allowed: mp3, webm`);
+    return;
+  }
+  const isVideo = fmt === 'webm';
+  
+  console.log("Spawning real-time Go worker tracking:", url);
+
+  // 1. Initialize our go run base arguments array
+  let args = ['run', goFilePath];
+
+  if (fmt) {
+    args.push('--format', fmt);
+  }
+
+  // 2. Append the video quality flag if a video format is chosen
+  if (isVideo) {
+    // If quality is empty or undefined, default safely to 1080p
+    const targetQuality = quality ? quality.toString() : '1080p';
+    args.push('--video', targetQuality);
+  }
+
+  // 3. Always push the URL as the absolute last argument item
+  args.push(url);
+
+  console.log("Spawning Go with args:", args);
+  const goApp = spawn('go', args);
+
+  let stderrData = "";
+
+  goApp.stdout.on('data', (data) => {
+    const lines = data.toString().split('\n');
+    for (const line of lines) {
+      const cleanLine = line.trim();
+      if (!cleanLine) continue;
+
+      console.log("GO STREAM STDOUT:", cleanLine);
+
+      if (cleanLine.startsWith('{') && cleanLine.endsWith('}')) {
+        try {
+          const statusUpdate = JSON.parse(cleanLine);
+          
+          const windows = BrowserWindow.getAllWindows();
+          if (windows.length > 0) {
+            windows[0].webContents.send('download-progress-stream', statusUpdate);
+          }
+        } catch (e) {
+          console.error("Failed to parse Go JSON stream:", e, "Raw line:", cleanLine);
+        }
+      }
+    }
+  });
+
+  // Keep track of stderr in case something breaks down inside yt-dlp
+  goApp.stderr.on('data', (data) => {
+    stderrData += data.toString();
+    console.error("GO STREAM STDERR:", data.toString());
+  });
+
+  goApp.on('close', (code) => {
+    console.log(`Go worker process exited with code ${code}`);
+    const windows = BrowserWindow.getAllWindows();
+    if (windows.length > 0) {
+      if (code === 0) {
+        windows[0].webContents.send('download-status', 'Finished!');
+      } else {
+        windows[0].webContents.send('download-status', `Error occurred (Exit Code ${code})`);
+      }
     }
   });
 });
@@ -54,40 +148,45 @@ ipcMain.handle('get-songs', async (event, playlistID) => {
     const mm = await import('music-metadata');
     const {stdout} = await execPromise(cmd);
     const basicSongs = JSON.parse(stdout);
+    // Replace the internal loop block inside ipcMain.handle('get-songs')
     const enritchedSongs = await Promise.all(basicSongs.map(async (song: any) => {
       try {
-        const musicDir = path.join(__dirname, '..','MyMusic');
-        const targetFile = song.Filename || song.filename; 
-
-        if (!targetFile) {
-            console.error("Song object missing Filename:", song);
-            return song;
+        const targetFile = song.Filename || song.filename || ""; 
+        const baseAppRoot = path.join(__dirname, '..');
+        
+        let fullpath: string;
+        if (path.isAbsolute(targetFile)) {
+            fullpath = targetFile;
+        } else if (targetFile.startsWith('MyVideos') || targetFile.startsWith('MyVideo') || targetFile.startsWith('MyMusic')) {
+          fullpath = path.join(baseAppRoot, targetFile);
+        } else {
+            fullpath = path.join(baseAppRoot, 'MyMusic', targetFile);
         }
 
-        const fullpath = path.isAbsolute(targetFile)
-        ? targetFile
-        : path.join(musicDir, targetFile);
-        const metadata = await mm.parseFile(fullpath);
-        const picture = metadata.common.picture?.[0];
+        // Try parsing metadata, safely fallback if it's a video container format
+        let metadata: any = null;
+        try {
+            metadata = await mm.parseFile(fullpath);
+        } catch(e) {
+            console.log("Skipping audio ID3 tags extraction for video asset container.");
+        }
+
+        const picture = metadata?.common?.picture?.[0];
         let thumbData = "";
         if (picture) {
           const base64Thumb = Buffer.from(picture.data).toString('base64');
           thumbData = `data:${picture.format};base64,${base64Thumb}`
         }
 
-        const finalThumb = thumbData && thumbData.length > 0 ? thumbData : song.thumb;
-
         return {
           ...song,
-          Name: metadata.common.title || song.Name,
-          Artist: metadata.common.artist || "Unknown Artist",
-          Duration: metadata.format.duration,
-          Thumb: finalThumb,
-          thumb: finalThumb
+          Name: metadata?.common?.title || song.Name || song.name,
+          Artist: metadata?.common?.artist || "Unknown Artist",
+          Duration: metadata?.format?.duration || 0,
+          Thumb: thumbData || song.thumb || 'default-cover.jpg'
         };
       } catch (err) {
-        console.error(`Metadata extraction failed for: ${song.Filename}`, err);
-        return song
+        return song;
       }
     }));
     return enritchedSongs;
@@ -113,21 +212,50 @@ function createWindow() {
 
 app.whenReady().then(() => {
   protocol.registerFileProtocol('local-file', (request, callback) => {
+    // 1. Strip the protocol header and decode spaces/symbols
     const relativePath = decodeURIComponent(request.url.replace('local-file://', ''));
     
     try {
-      const musicRoot = path.join(__dirname, '..', 'MyMusic');
-      const finalPath = path.normalize(path.join(musicRoot, relativePath));
+      // 2. Try resolving relativePath against likely app roots
+      const nestedRoot = path.join(__dirname, '..'); // e.g. /.../frontend/frontend
+      const outerRoot = path.join(__dirname, '..', '..'); // e.g. /.../frontend
+      const fs = require('fs');
+      let finalPath: string | null = null;
+
+      // Candidate 1: nested frontend (where MyVideos/MyMusic actually live during development)
+      const candidateNested = path.normalize(path.join(nestedRoot, relativePath));
+      if (fs.existsSync(candidateNested)) {
+        finalPath = candidateNested;
+      }
+
+      // Candidate 2: outer project folder (fallback for when files live next to downloader.go)
+      if (!finalPath) {
+        const candidateOuter = path.normalize(path.join(outerRoot, relativePath));
+        if (fs.existsSync(candidateOuter)) {
+          finalPath = candidateOuter;
+        }
+      }
+
+      // Candidate 3: if still not found and the request looks like a music asset, try MyMusic under nestedRoot
+      if (!finalPath) {
+        const candidateNestedMusic = path.normalize(path.join(nestedRoot, 'MyMusic', relativePath));
+        if (fs.existsSync(candidateNestedMusic)) {
+          finalPath = candidateNestedMusic;
+        }
+      }
+
+      // Candidate 4: fallback to outer MyMusic
+      if (!finalPath) {
+        finalPath = path.normalize(path.join(outerRoot, 'MyMusic', relativePath));
+      }
       
-      console.log("Protocol loading:", finalPath); 
+      // CRUCIAL: This will log out the exact path Electron is trying to access on your Linux machine
+      console.log("PROTOCOL RESOLVED ABSOLUTE PATH:", finalPath); 
+      
       callback({ path: finalPath });
     } catch (error) {
       console.error('Failed to register protocol', error);
     }
   });
   createWindow();
-});
-
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
 });
