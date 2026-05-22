@@ -157,7 +157,6 @@ window.addEventListener('DOMContentLoaded', () => {
             player.src = `local-file://${next.replace(/\\/g, '/')}`;
             player.play().catch((err: any) => console.error('Playback failed:', err));
         } else {
-            // End of playlist or unknown index: reset index
             win.currentIndex = -1;
         }
     });
@@ -188,7 +187,6 @@ window.addEventListener('DOMContentLoaded', () => {
         try {
             if (libraryGridVidoe) libraryGridVidoe.innerHTML = "<p>Loading videos...</p>";
             const libraryData = await window.electronAPI.getLibrary();
-            // Extract the video array explicitly from the new envelope object
             await renderVideoLibrary(libraryData.video || []); 
             renderVideoLibrary(libraryData.video || []);
         } catch (err) {
@@ -198,9 +196,8 @@ window.addEventListener('DOMContentLoaded', () => {
         showPage(pageVideo, navVideo);
     });
 
-    // Show quality only for webm (video) format
     if (qualitySelect) {
-        // hide by default
+        
         qualitySelect.style.display = 'none';
     }
 
@@ -255,7 +252,6 @@ window.addEventListener('DOMContentLoaded', () => {
     async function openPlaylist(playlistId: string, playlistName: string, playlistThumbPath?: string) {
         if (!libraryGrid) return;
         libraryGrid.style.display = "block"
-        // Show a loading state
         libraryGrid.innerHTML = "<p>Loading songs...</p>";
 
         try {
@@ -277,7 +273,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 return `${mins}:${secs.toString().padStart(2,'0')}`;
             };
             console.log("Go returned this data:", songs);
-            // Store the current playlist paths (normalized with forward slashes)
             (window as any).currentPlaylist = songs.map((song: any) => (song.filename || song.Filename || '').replace(/\\/g, '/'));
             (window as any).currentIndex = -1;
 
@@ -342,7 +337,6 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderVideoLibrary(playlists: any[]) {
-        // FIXED: Ensure we exit if the specific video grid container doesn't exist
         if (!libraryGridVidoe) return;
         
         libraryGridVidoe.style.display = "grid"; 
@@ -373,35 +367,29 @@ window.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
 
-            // 1. Safe Dropdown Toggle Listener
             const menuBtn = card.querySelector('.playlist-dropdown-btn');
             menuBtn?.addEventListener('click', (e) => {
                 togglePlaylistMenu(e as MouseEvent, playlist.id);
             });
 
-            // 2. Dedicated Delete Click Handler
             const deleteItem = card.querySelector('.menu-item.btn-delete-action');
             deleteItem?.addEventListener('click', (e) => {
                 deletePlaylist(e as MouseEvent, playlist.id);
             });
 
-            // 3. Dedicated Rename Click Handler
             const renameItem = card.querySelector('.menu-item.btn-rename-action');
             renameItem?.addEventListener('click', (e) => {
                 renamePlaylist(e as MouseEvent, playlist.id);
             });
 
-            // 4. Main Card Action (Ignores dropdown clicks)
             card.addEventListener('click', (e) => {
                 const target = e.target as HTMLElement;
                 if (target.closest('.playlist-dropdown-btn') || target.closest('.playlist-dropdown')) {
                     return; 
                 }
-                // Future feature expansion: adjust this to open video tracks specifically
                 openVideoPlaylist(playlist.id, playlist.name, playlist.thumb);
             });
-
-            // FIXED: Appends onto your designated video wrapper element
+            
             libraryGridVidoe.appendChild(card);
         });
     }
@@ -412,7 +400,7 @@ window.addEventListener('DOMContentLoaded', () => {
         libraryGridVidoe.innerHTML = "<p>Loading videos...</p>";
 
         try {
-            const videos = await window.electronAPI.getSongs(playlistId); // Assuming this retrieves track records
+            const videos = await window.electronAPI.getSongs(playlistId);
             
             let playlistThumb = 'default-cover.jpg';
             if (playlistThumbPath) {
@@ -438,7 +426,7 @@ window.addEventListener('DOMContentLoaded', () => {
                                         <span class="song-name">${vidName}</span>
                                     </div>
                                 </div>
-                                <!-- Routes directly to a global window space player if needed -->
+                                
                                 <button class="play-btn" onclick="playVideo('${vidPath.replace(/\\/g, '/')}')">▶</button>
                             </div>
                         `;
@@ -472,7 +460,7 @@ window.addEventListener('DOMContentLoaded', () => {
             const card = document.createElement('div');
             card.className = 'playlist-card';
             
-            // REMOVED inline onclick attributes entirely
+            
             card.innerHTML = `
                 <div class="thumb-container">
                     <img src="local-file://${playlist.thumb}" alt="${playlist.name}">
@@ -489,25 +477,21 @@ window.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
 
-            // 1. Safe Dropdown Toggle Listener
             const menuBtn = card.querySelector('.playlist-dropdown-btn');
             menuBtn?.addEventListener('click', (e) => {
                 togglePlaylistMenu(e as MouseEvent, playlist.id);
             });
 
-            // 2. Dedicated Delete Click Handler
             const deleteItem = card.querySelector('.menu-item.btn-delete-action');
             deleteItem?.addEventListener('click', (e) => {
                 deletePlaylist(e as MouseEvent, playlist.id);
             });
 
-            // 3. Dedicated Rename Click Handler (This guarantees execution!)
             const renameItem = card.querySelector('.menu-item.btn-rename-action');
             renameItem?.addEventListener('click', (e) => {
                 renamePlaylist(e as MouseEvent, playlist.id);
             });
 
-            // 4. Main Card Action (Ignores internal menu clicks)
             card.addEventListener('click', (e) => {
                 const target = e.target as HTMLElement;
                 if (target.closest('.playlist-dropdown-btn') || target.closest('.playlist-dropdown')) {
@@ -538,17 +522,15 @@ window.addEventListener('DOMContentLoaded', () => {
     async function renamePlaylist(event: MouseEvent, id: string) {
         event.stopPropagation();
         
-        // 1. Close the dropdown menu immediately so it doesn't get stuck open
         document.querySelectorAll('.playlist-dropdown').forEach((menu: any) => {
             menu.style.display = 'none';
         });
 
-        // 2. Ask the user for a new name using a clean HTML custom popup 
-        // (Or just use our updated bridge to do it natively)
+        
         const currentCard = (event.target as HTMLElement).closest('.playlist-card');
         const oldName = currentCard?.querySelector('h3')?.innerText || "";
 
-        // Let's create a quick, reliable inline modal overlay so we don't rely on broken browser prompts
+        
         const modal = document.createElement('div');
         modal.style.position = 'fixed';
         modal.style.top = '0';
@@ -574,17 +556,17 @@ window.addEventListener('DOMContentLoaded', () => {
 
         document.body.appendChild(modal);
 
-        // Auto-focus the input text box
+        
         const input = modal.querySelector('#modal-rename-input') as HTMLInputElement;
         input.focus();
         input.select();
 
-        // Handle Cancel Action
+        
         modal.querySelector('#modal-cancel-btn')?.addEventListener('click', () => {
             modal.remove();
         });
 
-        // Handle Save Action
+        
         modal.querySelector('#modal-save-btn')?.addEventListener('click', async () => {
             const newName = input.value.trim();
             if (newName && newName !== oldName) {
@@ -663,7 +645,6 @@ function togglePlaylistMenu(event: MouseEvent, id: string) {
 (window as any).togglePlaylistMenu = togglePlaylistMenu;
 
 (window as any).playVideo = (filename: string) => {
-    // 1. Target the exact elements from your index.html file
     const videoModal = document.getElementById('video-modal') as HTMLDivElement;
     const videoPlayer = document.getElementById('global-video-player') as HTMLVideoElement;
     const audioPlayer = document.getElementById('audio-player') as HTMLAudioElement;
@@ -674,7 +655,6 @@ function togglePlaylistMenu(event: MouseEvent, id: string) {
         return;
     }
 
-    // 2. Shut down background music tracks so audio doesn't overlap
     if (audioPlayer && !audioPlayer.paused) {
         audioPlayer.pause();
         if (masterPlayBtn) {
@@ -682,8 +662,6 @@ function togglePlaylistMenu(event: MouseEvent, id: string) {
         }
     }
 
-    // 3. Assemble the normalized local-file URL path string
-    // Normalize and ensure the path uses the project's video folder (supports MyVideos and MyVideo)
     let cleanRelPath = filename.replace(/\\/g, '/');
     if (!cleanRelPath.startsWith('MyVideos/') && !cleanRelPath.startsWith('MyVideo/')) {
         cleanRelPath = `MyVideos/${cleanRelPath}`;
@@ -692,23 +670,19 @@ function togglePlaylistMenu(event: MouseEvent, id: string) {
     const cleanPath = `local-file://${cleanRelPath}`;
     console.log("Binding source link to media core engine:", cleanPath);
 
-    // 4. Update the source stream layout and force reload the hardware decoder pipeline
     videoPlayer.src = cleanPath;
     videoPlayer.load(); 
 
-    // 5. Open the modal overlay frame container
     videoModal.style.display = 'flex';
 
-    // 6. Execute video playback
     videoPlayer.play().catch((err: any) => {
         console.error("Chromium core video execution engine failed to play track:", err);
     });
 
-    // 7. Wire up the close button listener to clear memory buffers cleanly
     const closeBtn = document.getElementById('close-video-btn');
     const closeHandler = () => {
         videoPlayer.pause();
-        videoPlayer.src = ""; // Flushes media buffers out of system memory
+        videoPlayer.src = "";
         videoModal.style.display = 'none';
         closeBtn?.removeEventListener('click', closeHandler);
     };

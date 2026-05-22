@@ -97,18 +97,15 @@ electron_1.ipcMain.on("start-download", (event, url, format, quality) => {
     }
     const isVideo = fmt === 'webm';
     console.log("Spawning real-time Go worker tracking:", url);
-    // 1. Initialize our go run base arguments array
     let args = ['run', goFilePath];
     if (fmt) {
         args.push('--format', fmt);
     }
-    // 2. Append the video quality flag if a video format is chosen
     if (isVideo) {
-        // If quality is empty or undefined, default safely to 1080p
+        
         const targetQuality = quality ? quality.toString() : '1080p';
         args.push('--video', targetQuality);
     }
-    // 3. Always push the URL as the absolute last argument item
     args.push(url);
     console.log("Spawning Go with args:", args);
     const goApp = (0, child_process_1.spawn)('go', args);
@@ -134,7 +131,6 @@ electron_1.ipcMain.on("start-download", (event, url, format, quality) => {
             }
         }
     });
-    // Keep track of stderr in case something breaks down inside yt-dlp
     goApp.stderr.on('data', (data) => {
         stderrData += data.toString();
         console.error("GO STREAM STDERR:", data.toString());
@@ -176,7 +172,7 @@ electron_1.ipcMain.handle('get-songs', (event, playlistID) => __awaiter(void 0, 
         const mm = yield import('music-metadata');
         const { stdout } = yield execFilePromise('go', ['run', goFilePath, '--songs', playlistID]);
         const basicSongs = JSON.parse(stdout);
-        // Replace the internal loop block inside ipcMain.handle('get-songs')
+        
         const enritchedSongs = yield Promise.all(basicSongs.map((song) => __awaiter(void 0, void 0, void 0, function* () {
             var _a, _b, _c, _d, _e;
             try {
@@ -192,7 +188,6 @@ electron_1.ipcMain.handle('get-songs', (event, playlistID) => __awaiter(void 0, 
                 else {
                     fullpath = path.join(baseAppRoot, 'MyMusic', targetFile);
                 }
-                // Try parsing metadata, safely fallback if it's a video container format
                 let metadata = null;
                 try {
                     metadata = yield mm.parseFile(fullpath);
@@ -233,7 +228,6 @@ function createWindow() {
 }
 electron_1.app.whenReady().then(() => {
     electron_1.protocol.registerFileProtocol('local-file', (request, callback) => {
-        // 1. Strip the protocol header and decode spaces/symbols
         let relativePath = decodeURIComponent(request.url.replace(/^local-file:\/\//i, ''));
         if (process.platform === 'win32') {
             const windowsDrive = relativePath.match(/^\/([A-Za-z]:[\\/].*)$/);
@@ -243,9 +237,8 @@ electron_1.app.whenReady().then(() => {
         }
         relativePath = relativePath.replace(/\\/g, path.sep).replace(/\//g, path.sep);
         try {
-            // 2. Try resolving relativePath against likely app roots
-            const nestedRoot = path.join(__dirname, '..'); // e.g. /.../frontend/frontend
-            const outerRoot = path.join(__dirname, '..', '..'); // e.g. /.../frontend
+            const nestedRoot = path.join(__dirname, '..');
+            const outerRoot = path.join(__dirname, '..', '..');
             let finalPath = null;
             const candidates = [
                 path.join(nestedRoot, relativePath),
@@ -262,7 +255,6 @@ electron_1.app.whenReady().then(() => {
             if (!finalPath) {
                 finalPath = path.normalize(candidates[0]);
             }
-            // CRUCIAL: This will log out the exact path Electron is trying to access on your machine
             console.log("PROTOCOL RESOLVED ABSOLUTE PATH:", finalPath);
             callback({ path: finalPath });
         }
