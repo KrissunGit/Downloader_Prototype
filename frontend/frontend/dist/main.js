@@ -44,16 +44,17 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 const electron_1 = require("electron");
 const path = __importStar(require("path"));
+const fs = __importStar(require("fs"));
 const child_process_1 = require("child_process");
 const util_1 = require("util");
 const execPromise = (0, util_1.promisify)(child_process_1.exec);
+const execFilePromise = (0, util_1.promisify)(child_process_1.execFile);
 let cachedLibrary = null;
 electron_1.ipcMain.handle('rename-playlist', (event, playlistID, newName) => __awaiter(void 0, void 0, void 0, function* () {
     const rootPath = path.join(__dirname, '..', '..');
     const goFilePath = path.join(rootPath, 'downloader.go');
-    const cmd = `go run "${goFilePath}" --rename-playlist "${playlistID}" "${newName}"`;
     try {
-        yield execPromise(cmd);
+        yield execFilePromise('go', ['run', goFilePath, '--rename-playlist', playlistID, newName]);
         cachedLibrary = null;
         const windows = electron_1.BrowserWindow.getAllWindows();
         if (windows.length > 0) {
@@ -69,9 +70,8 @@ electron_1.ipcMain.handle('rename-playlist', (event, playlistID, newName) => __a
 electron_1.ipcMain.handle("delete-playlist", (event, playlistID) => __awaiter(void 0, void 0, void 0, function* () {
     const rootPath = path.join(__dirname, '..', '..');
     const goFilePath = path.join(rootPath, 'downloader.go');
-    const cmd = `go run "${goFilePath}" --delete-playlist "${playlistID}"`;
     try {
-        yield execPromise(cmd);
+        yield execFilePromise('go', ['run', goFilePath, '--delete-playlist', playlistID]);
         cachedLibrary = null;
         const windows = electron_1.BrowserWindow.getAllWindows();
         if (windows.length > 0) {
@@ -158,7 +158,7 @@ electron_1.ipcMain.handle('get-library', () => __awaiter(void 0, void 0, void 0,
     if (cachedLibrary)
         return cachedLibrary;
     return new Promise((resolve, reject) => {
-        (0, child_process_1.exec)(`go run "${goFilePath}" --list`, (error, stdout) => {
+        (0, child_process_1.execFile)('go', ['run', goFilePath, '--list'], (error, stdout) => {
             if (error)
                 reject(error);
             else {
@@ -166,17 +166,15 @@ electron_1.ipcMain.handle('get-library', () => __awaiter(void 0, void 0, void 0,
                 cachedLibrary = JSON.parse(stdout);
                 resolve(cachedLibrary);
             }
-            ;
         });
     });
 }));
 electron_1.ipcMain.handle('get-songs', (event, playlistID) => __awaiter(void 0, void 0, void 0, function* () {
     const rootPath = path.join(__dirname, '..', '..');
     const goFilePath = path.join(rootPath, 'downloader.go');
-    const cmd = `go run "${goFilePath}" --songs  "${playlistID}"`;
     try {
         const mm = yield import('music-metadata');
-        const { stdout } = yield execPromise(cmd);
+        const { stdout } = yield execFilePromise('go', ['run', goFilePath, '--songs', playlistID]);
         const basicSongs = JSON.parse(stdout);
         // Replace the internal loop block inside ipcMain.handle('get-songs')
         const enritchedSongs = yield Promise.all(basicSongs.map((song) => __awaiter(void 0, void 0, void 0, function* () {
@@ -236,37 +234,35 @@ function createWindow() {
 electron_1.app.whenReady().then(() => {
     electron_1.protocol.registerFileProtocol('local-file', (request, callback) => {
         // 1. Strip the protocol header and decode spaces/symbols
-        const relativePath = decodeURIComponent(request.url.replace('local-file://', ''));
+        let relativePath = decodeURIComponent(request.url.replace(/^local-file:\/\//i, ''));
+        if (process.platform === 'win32') {
+            const windowsDrive = relativePath.match(/^\/([A-Za-z]:[\\/].*)$/);
+            if (windowsDrive) {
+                relativePath = windowsDrive[1];
+            }
+        }
+        relativePath = relativePath.replace(/\\/g, path.sep).replace(/\//g, path.sep);
         try {
             // 2. Try resolving relativePath against likely app roots
             const nestedRoot = path.join(__dirname, '..'); // e.g. /.../frontend/frontend
             const outerRoot = path.join(__dirname, '..', '..'); // e.g. /.../frontend
-            const fs = require('fs');
             let finalPath = null;
-            // Candidate 1: nested frontend (where MyVideos/MyMusic actually live during development)
-            const candidateNested = path.normalize(path.join(nestedRoot, relativePath));
-            if (fs.existsSync(candidateNested)) {
-                finalPath = candidateNested;
-            }
-            // Candidate 2: outer project folder (fallback for when files live next to downloader.go)
-            if (!finalPath) {
-                const candidateOuter = path.normalize(path.join(outerRoot, relativePath));
-                if (fs.existsSync(candidateOuter)) {
-                    finalPath = candidateOuter;
+            const candidates = [
+                path.join(nestedRoot, relativePath),
+                path.join(outerRoot, relativePath),
+                path.join(nestedRoot, 'MyMusic', relativePath),
+                path.join(outerRoot, 'MyMusic', relativePath),
+            ];
+            for (const candidate of candidates) {
+                if (fs.existsSync(candidate)) {
+                    finalPath = path.normalize(candidate);
+                    break;
                 }
             }
-            // Candidate 3: if still not found and the request looks like a music asset, try MyMusic under nestedRoot
             if (!finalPath) {
-                const candidateNestedMusic = path.normalize(path.join(nestedRoot, 'MyMusic', relativePath));
-                if (fs.existsSync(candidateNestedMusic)) {
-                    finalPath = candidateNestedMusic;
-                }
+                finalPath = path.normalize(candidates[0]);
             }
-            // Candidate 4: fallback to outer MyMusic
-            if (!finalPath) {
-                finalPath = path.normalize(path.join(outerRoot, 'MyMusic', relativePath));
-            }
-            // CRUCIAL: This will log out the exact path Electron is trying to access on your Linux machine
+            // CRUCIAL: This will log out the exact path Electron is trying to access on your machine
             console.log("PROTOCOL RESOLVED ABSOLUTE PATH:", finalPath);
             callback({ path: finalPath });
         }

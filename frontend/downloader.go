@@ -328,7 +328,7 @@ func saveToVideoDatabase(db *sql.DB, link string, fileType string, videoPlaylist
 		vPlaylistTitle = videoPlaylistName // "Single Videos"
 	}
 
-	filename := fmt.Sprintf("MyVideos/%s_%s.%s", extractor, videoIDStr, fileType)
+	filename := filepath.Join("MyVideos", fmt.Sprintf("%s_%s.%s", extractor, videoIDStr, fileType))
 
 	// FIX 1: Explicitly guarantee the "Single Videos" collection container exists FIRST.
 	// This runs completely independently so it never gets skipped if video processing hits an error.
@@ -336,7 +336,7 @@ func saveToVideoDatabase(db *sql.DB, link string, fileType string, videoPlaylist
         INSERT INTO video_playlists (youtube_id, name, thumbnail_path, exractor) 
         VALUES (?, ?, ?, ?) 
         ON CONFLICT(youtube_id) DO NOTHING`,
-		"single_videos_collection", "Single Videos", "MyVideos/Thumbnails/video_default.jpg", "internal")
+		"single_videos_collection", "Single Videos", filepath.ToSlash(filepath.Join("MyVideos", "Thumbnails", "video_default.jpg")), "internal")
 	if err != nil {
 		log.Printf("Error creating default video collection shelf: %v", err)
 	}
@@ -346,7 +346,7 @@ func saveToVideoDatabase(db *sql.DB, link string, fileType string, videoPlaylist
         INSERT INTO videos (youtube_id, name, filename, thumbnail_path, extractor) 
         VALUES (?, ?, ?, ?, ?) 
         ON CONFLICT(youtube_id) DO UPDATE SET name=excluded.name`,
-		videoIDStr, title, filename, fmt.Sprintf("MyVideos/Thumbnails/%s.jpg", videoIDStr), extractor)
+		videoIDStr, title, filename, filepath.ToSlash(filepath.Join("MyVideos", "Thumbnails", fmt.Sprintf("%s.jpg", videoIDStr))), extractor)
 
 	if err != nil {
 		log.Printf("Error tracking video asset record: %v", err)
@@ -354,9 +354,9 @@ func saveToVideoDatabase(db *sql.DB, link string, fileType string, videoPlaylist
 	}
 
 	// 3. Track actual target playlist if this download belongs to an external set list
-	thumbName := fmt.Sprintf("MyVideos/Thumbnails/%s.jpg", vPlaylistIDStr)
+	thumbName := filepath.ToSlash(filepath.Join("MyVideos", "Thumbnails", fmt.Sprintf("%s.jpg", vPlaylistIDStr)))
 	if vPlaylistIDStr == "single_videos_collection" {
-		thumbName = "MyVideos/Thumbnails/video_default.jpg"
+		thumbName = filepath.ToSlash(filepath.Join("MyVideos", "Thumbnails", "video_default.jpg"))
 	}
 
 	// Using exractor to match your table's typo temporary safety layout

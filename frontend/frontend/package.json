@@ -6,7 +6,9 @@
     "build": "tsc",
     "watch": "tsc -w",
     "start": "electron .",
-    "dev": "nodemon --watch dist --exec \"npm start\""
+    "dev": "nodemon --watch dist --exec \"npm start\"",
+    "setup": "npm install",
+    "install-deps": "npm install"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
